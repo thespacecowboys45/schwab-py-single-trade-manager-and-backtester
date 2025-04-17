@@ -8,6 +8,18 @@ Documentation forthcoming.
 
 The information on this page is for informational purposes only.  There are inherent risks to trading.  By trading you assume those risks.  The authors assuage responsibility for trading decisions that you may, or may not, make based on any information derived from the works within these pages.
 
+##### Double Disclaimer:
+
+If you *do* legitimately want to learn how to trade, This is a recommended path
+for learning that:
+
+[![Disciplined Trading Strategies](https://www.disciplinedtradingstrategies.com)]
+
+I/we have no affiliation with DTS, nor they with us.  This is a recommendation only on a starting path on learning the basics (and advanced) of
+Technical Analysis.  If you *do* go this route let them know that 'TheSpaceCowboy' sent them because yeah, it's good to know people give referrals.
+
+
+
 
 ##### Where do I get the code?
 
