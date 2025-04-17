@@ -444,11 +444,44 @@ body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background-color: #f4f6f8;
   margin: 0;
+  padding: 0;
+}
+
+header {
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+#navigation {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+#navigation a {
+  text-decoration: none;
+  color: #007bff;
+  background-color: #e9f2ff;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+#navigation a:hover {
+  background-color: #007bff;
+  color: white;
+}
+
+main {
   padding: 2rem;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  height: 100vh;
 }
 
 #command-container {
@@ -459,6 +492,7 @@ body {
   width: 100%;
   max-width: 400px;
   text-align: center;
+  margin-top: 2rem;
 }
 
 .command-input {
@@ -483,14 +517,14 @@ body {
   font-size: 1rem;
   border: none;
   border-radius: 8px;
-  background-color: #007bff;
+  background-color: #28a745;
   color: white;
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
 
 .command-button:hover {
-  background-color: #0056b3;
+  background-color: #1e7e34;
 }
 
 ```
@@ -508,3 +542,225 @@ app.register_blueprint(strategy_mapper_bp)
 app.register_blueprint(web_api_bp)
 
 ```
+
+### Building in the API commands.
+
+At the moment, we simply want to establish communication from the web GUI to the backend server.
+We are going to accomplish this via the /api/v1/run_command REST endpoint.  This endpoint takes
+two parameters, both encapsulated inside an HTTP POST body:
+
+- command : string : the command to run
+- command_input : string : any parameters or input to go along with the command
+
+For additional ease we will use an HTML ```<input>``` element to test sending some test 'command_input' data.
+
+```
+    <input type="text" class="command-input" id="command-input" placeholder="Enter command input here." />
+```
+
+Given this route:
+
+```
+# default route is /api so this is /api/run_command
+@web_api_bp.route('/run_command', methods=['POST'])
+def run_command():
+    print(f"run_command [ entry ]")
+
+    data = request.get_json()
+    command = data.get("command", "")
+    command_input = data.get("command_input", "").upper()
+
+    print(f"Received command: {command}")
+    print(f"Received command_input: {command_input}")
+
+	return jsonify({"message":"ok","command":command,"command_input":command_input}), 200
+
+```
+
+
+NOTE: It is important to send a response back to the client.  This is done using the `jsonify` helper class that Flask provides to send a .json payload back using `content-type=text/javascript` or something like that.  It's really nice!
+
+We echo back what the client sent to us as far as the 'command' and 'command_input' go, so we can see that reflected back in the browser GUI.
+
+
+So, now let us write some javascript to parse out the elements in the page and send that data using a `fetch()` request:
+
+```
+
+function onClick_runCommand(command) {
+    console.log("onClick_runCommand: " + command);
+
+    command = document.getElementById('command').value;
+    command_input = document.getElementById('command_input').value;
+
+    console.log("COMMAND: " + command + "INPUT: " + command_input);
+    sendCommand(command, command_input);
+}
+
+const API_BASE = '/api/v1';
+
+async function sendCommand(commandText, inputText) {
+    try {
+        const response = await fetch(API_BASE+'/run_command', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                command: commandText,
+                command_input: inputText 
+            })
+        });
+
+        const data = await response.json();
+        console.log("Server response:", data.message);
+        //showUserMessageBanner(data.message);
+    } catch (error) {
+        console.error("Error sending command:", error);
+    }
+}
+
+
+```
+
+It is always never not a good idea to encapsulate some functions and abstract their functionality from the page.  If you notice we 1) parse the HTML page to get the data to send.  This abstraction layer (HTML) is separate from making an API request to the server, in this case via `sendCommand()`.  This allows us, after writing this function, to re-use it later and elsewhere.
+
+Voila!
+
+Okay, we should see this in the browser console now, demonstrating the server echo'ing back data to the client:
+
+```
+[ insert shot of console log ]
+
+
+```
+
+Let us wrap up and finish this chapter with some simple, yet extremely powerful, additions for FEEDBACK from the server.  How do we know what the server is doing, if all we have is the web-browser?
+
+Simple!  A message dialog box.  Let's include it in the HTML page:
+
+`user_message_banner.html`
+
+```
+<!-- User Messages banner -->
+<div id="user-message-banner" style="display:none; background-color: #f8d7da; padding: 10px; color: #721c24; text-align: center; font-weight: bold;">
+    <!-- The user message will be injected here -->
+</div>
+
+
+```
+
+
+and include it in `index.html`
+
+```
+{% include 'user_message_banner.html' %}
+```
+
+and provide the following in `static/js/user_message_banner.js`
+
+```
+/* Displays a message in the banner at the top which disappears after a few seconds */
+function showUserMessageBanner(message) {
+    const banner = document.getElementById('user-message-banner');
+    
+    banner.textContent = message;
+    banner.style.display = 'block';
+
+    setTimeout(() => {
+        banner.style.display = 'none';
+    }, 5000);    
+}
+```
+
+making sure to include in the HTML source in `index.html`
+
+```
+<script src="{{ url_for('static', filename='js/user_message_banner.js') }}"></script>
+```
+
+and then we enable it in the `sendCommand()` function so that we can know what the server said back, visually:
+
+`updated: sendCommand() in site.js`
+
+```
+showUserMessageBanner(data.message);
+```
+
+If we enhance the response back from the server, we can show meaningful feedback to the user:
+
+```
+    message = f"ok. we ran the command: {command} with command_input: {command_input}"
+    return jsonify({"message":message,"command":command,"command_input":command_input}), 200
+
+```
+
+
+[![User Message Banner](../media/chapter1_cli_and_setup/chapter1_user_message_banner1.png)](https://www.stockmarketswizzles.com)
+
+And here we now can see the updated banner with response feedback.
+
+Take a breather!  That was a lot.
+
+Oh, last thing, let's take a look at the CLI and running the commands in there....
+
+
+We essentially copy the code from `main_logic.py` for `processCommand()` itself, and put it in the Flask route handler:
+
+```
+# default route is /api so this is /api/run-command
+@web_api_bp.route('/run_command', methods=['POST'])
+def run_command():
+    print(f"run_command [ entry ]")
+
+    data = request.get_json()
+    command = data.get("command", "")
+    command_input = data.get("command_input", "").upper()
+
+    print(f"Received command: {command}")
+    print(f"Received command_input: {command_input}")
+
+    print(f"----------------------------------")
+    print(f"PROCESSING CHOICE: {choice}")
+    print(f"----------------------------------\n")
+    command_processed = False
+    try:
+        match command:
+            case "1":
+                print(f"run command1()")
+                processCommand(command)
+                command_processed = True
+            case "2":
+                print(f"run command2()")
+                processCommand(command)
+                command_processed = True
+            case _:
+                invalid_choice = True
+                command_processed = False
+                print(f"Invalid choice '{choice}'. Please try again.")
+
+    except Exception as e:
+        print(f"CODE ERROR - CODE ERROR - CODE ERROR")
+        print(f"There was an exception! {str(e)}")
+        traceback.print_exc()
+        time.sleep(3)
+
+    message = f"ok. command '{command}' with command_input: {command_input} was processed?: {command_processed}"
+    return jsonify({"message":message,"command":command,"command_input":command_input}), 200
+
+
+```
+
+Now, if we make our `core.main_logic.processCommand()` function a litle more robust, we may be able to take out a bunch of that logic above.  For now, leave it, until we get everything working.  Remember, this is a refine-learn-and-prune exercise at the moment.
+
+
+At the moment the CLI is very basic, and mimics the functionality in our web GUI: run command 1 or run command 2.
+
+
+[![CLI Basic](../media/chapter1_cli_and_setup/chapter1_cli_basic1.png)](https://www.stockmarketswizzles.com)
+
+If you test, you will see that command 1 and command 2 selection from the CLI will run the same backend functions when we use the web GUI to run command 1 or command 2.
+
+Voila!
+
+
